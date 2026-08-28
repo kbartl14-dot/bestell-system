@@ -368,9 +368,9 @@
 
     <div class="overlay" id="overlay">
         <div class="overlay-card">
-            <div class="icon">📧</div>
-            <h2>Lieferstatus wurde an Haus übermittelt!</h2>
-            <p>Das Haus wurde über die abweichenden Artikel informiert.</p>
+            <div class="icon" id="overlayIcon">📧</div>
+            <h2 id="overlayTitle">Lieferstatus wurde an Haus übermittelt!</h2>
+            <p id="overlayText">Das Haus wurde über die abweichenden Artikel informiert.</p>
             <button class="btn-close" onclick="closeOverlay()">Fenster schließen</button>
         </div>
     </div>
@@ -402,6 +402,7 @@
         let checkedItems = 0;
         let issueItems = 0;
         let bestellung = null;
+        let overlayClosesWindow = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (!BESTELLUNG_ID) {
@@ -455,7 +456,6 @@
             const haus = data.haus || 'Unbekanntes Haus';
             const lieferdatum = data.datum || 'Datum unbekannt';
             const besteller = data.besteller || '';
-            const anmerkungen = data.anmerkungen || '';
             const artikel = data.bestellte_artikel || [];
 
             itemData = {};
@@ -472,9 +472,8 @@
                     <div class="header-info">
                         <div>🏠 <span>${haus}</span></div>
                         <div>📅 <span>${lieferdatum}</span></div>
-                        ${besteller ? `<div>👤 <span>${besteller}</span></div>` : ''}
+                        <div>👤 <span>${besteller}</span></div>
                     </div>
-                    ${anmerkungen ? `<div class="header-notes">💬 ${anmerkungen}</div>` : ''}
                 </div>
             `;
 
@@ -704,8 +703,6 @@
         // ✅ PACKLISTE ABSCHLIESSEN
         // ============================================================
         async function handleComplete() {
-            if (!confirm('Alle Artikel sind da. Packliste abschließen?')) return;
-
             const btn = document.getElementById('completeBtn');
             btn.disabled = true;
             btn.textContent = '⏳ Wird gesendet...';
@@ -736,8 +733,12 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Packliste erfolgreich abgeschlossen!');
-                    window.close();
+                    // Popup mit "Fenster schließen" anzeigen – schließt danach die Packliste.
+                    document.getElementById('overlayIcon').textContent = '✅';
+                    document.getElementById('overlayTitle').textContent = 'Packliste abgeschlossen!';
+                    document.getElementById('overlayText').textContent = 'Die Bestellung wurde gespeichert und die Küche informiert.';
+                    document.getElementById('overlay').classList.add('show');
+                    overlayClosesWindow = true;
                 } else {
                     alert('❌ Fehler: ' + result.error);
                     btn.disabled = false;
@@ -822,6 +823,10 @@
 
         function closeOverlay() {
             document.getElementById('overlay').classList.remove('show');
+            if (overlayClosesWindow) {
+                window.close();
+            }
+            overlayClosesWindow = false;
         }
 
         function showError(title, message) {
@@ -835,5 +840,5 @@
         }
     </script>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a321e7d77aedb857',t:'MTc4NzkwNTMxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a32269f0cd23f94e',t:'MTc4NzkxMDY0OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
