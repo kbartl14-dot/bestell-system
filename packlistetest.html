@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Küchen-Packliste</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: #f8fafc; 
+            padding: 12px; 
+            margin: 0; 
+        }
+        .card { 
+            background: #fff; 
+            border-radius: 12px; 
+            border: 1px solid #e2e8f0; 
+            padding: 16px; 
+            max-width: 700px; 
+            margin: 0 auto; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+        }
+        .header { 
+            border-bottom: 2px solid #2563eb; 
+            padding-bottom: 12px; 
+            margin-bottom: 20px; 
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .header h2 { 
+            font-size: 18px; 
+            margin: 0; 
+            color: #0f172a; 
+            text-transform: uppercase; 
+        }
+        .header-info {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .header-info span {
+            color: #2563eb;
+        }
+        .header-notes {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #64748b;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 3px solid #f59e0b;
+        }
+        .category {
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .category-header {
+            background-color: #0f172a;
+            color: white;
+            padding: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 13px;
+            text-transform: uppercase;
+            transition: background-color 0.2s;
+            user-select: none;
+        }
+        .category-header:hover {
+            background-color: #1e293b;
+        }
+        .category-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .category-toggle {
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+        .category-toggle.open {
+            transform: rotate(90deg);
+        }
+        .category-items {
+            display: none;
+            padding: 0;
+            background-color: #ffffff;
+        }
+        .category-items.open {
+            display: block;
+        }
+        .item-row {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .item-row:last-child {
+            border-bottom: none;
+        }
+        .item-row.checked {
+            background-color: #f0fdf4;
+        }
+        .item-row.has-issue {
+            background-color: #fef2f2;
+        }
+        .item-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #16a34a;
+            flex-shrink: 0;
+        }
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .item-name {
+            font-weight: bold;
+            font-size: 13px;
+            color: #0f172a;
+            margin-bottom: 2px;
+            transition: all 0.2s;
+        }
+        .item-name.checked {
+            text-decoration: line-through;
+            color: #166534;
+        }
+        .item-qty {
+            font-size: 11px;
+            color: #64748b;
+        }
+        .item-status {
+            flex: 1;
+            min-width: 120px;
+        }
+        .item-status.hidden {
+            display: none;
+        }
+        .status-select {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 11px;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+        }
+        .status-select:focus {
+            outline: 2px solid #2563eb;
+            border-color: transparent;
+        }
+        .btn-row {
+            margin-top: 20px;
+            min-height: 54px;
+        }
+        .btn-row .btn {
+            width: 100%;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            display: none;
+        }
+        .btn-row .btn.show {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .btn-row .btn:active {
+            transform: scale(0.97);
+        }
+        .btn-row .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-success {
+            background: #16a34a;
+            color: white;
+        }
+        .btn-success:hover:not(:disabled) {
+            background: #15803d;
+        }
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background: #b91c1c;
+        }
+        .btn-gray {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeInOverlay 0.3s ease-out;
+        }
+        .overlay.show {
+            display: flex;
+        }
+        .overlay-card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px 24px 24px 24px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+        .overlay-card .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .overlay-card h2 {
+            font-size: 20px;
+            color: #0f172a;
+            margin: 0 0 8px 0;
+        }
+        .overlay-card p {
+            color: #475569;
+            font-size: 14px;
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+        .overlay-card .btn-close {
+            width: 100%;
+            background: #0f172a;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .overlay-card .btn-close:hover {
+            background: #1e293b;
+        }
+        .overlay-card .btn-close:active {
+            transform: scale(0.97);
+        }
+        @keyframes fadeInOverlay {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 16px;
+            color: #64748b;
+        }
+        .loading .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            text-align: center;
+            padding: 40px 20px;
+            color: #dc2626;
+        }
+        .error h2 {
+            margin-bottom: 8px;
+        }
+        .error p {
+            margin: 4px 0;
+            color: #475569;
+        }
+        .progress-bar {
+            margin: 16px 0;
+            background: #e2e8f0;
+            border-radius: 99px;
+            height: 8px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: #2563eb;
+            border-radius: 99px;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            font-size: 12px;
+            color: #64748b;
+            text-align: right;
+            margin-top: 2px;
+        }
+        .saving-indicator {
+            display: none;
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            padding: 8px;
+            margin-top: 10px;
+            background: #f1f5f9;
+            border-radius: 6px;
+        }
+        .saving-indicator.active {
+            display: block;
+        }
+        .saving-indicator.success {
+            color: #16a34a;
+            background: #f0fdf4;
+        }
+        .saving-indicator.error {
+            color: #dc2626;
+            background: #fef2f2;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="app">
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Lade Bestellung...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="overlay-card">
+            <div class="icon">📧</div>
+            <h2>Lieferstatus wurde an Haus übermittelt!</h2>
+            <p>Das Haus wurde über die abweichenden Artikel informiert.</p>
+            <button class="btn-close" onclick="closeOverlay()">Fenster schließen</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // ⚙️ KONFIGURATION
+        // ============================================================
+        // ============================================================
+        // 🟢 HIER DEINE GOOGLE-APPS-SCRIPT-WEBAPP-URL EINTRAGEN!
+        // Nach dem Deployment (siehe Anleitung) hier die URL einfügen:
+        // const GAS_API_URL = 'https://script.google.com/macros/s/DEINE_ID/exec';
+        // ============================================================
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbym57sG32zNz7qmphRPzbPnkbZSIgTbDKmjuWNvI4VXA7HSJ9cPIMzpWNfIOSzIuQUJ/exec';
+
+        // ============================================================
+        // 🚀 INIT
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        let BESTELLUNG_ID = urlParams.get('id');
+
+        if (!BESTELLUNG_ID) {
+            BESTELLUNG_ID = '10';
+            console.log('🔧 Test-Modus: Verwende ID 10');
+        }
+
+        let itemData = {};
+        let totalItems = 0;
+        let checkedItems = 0;
+        let issueItems = 0;
+        let bestellung = null;
+        let saveTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!BESTELLUNG_ID) {
+                showError('Keine Bestell-ID gefunden', 'Bitte öffnen Sie die Packliste mit dem richtigen Link aus Ihrer E-Mail.');
+                return;
+            }
+            loadBestellung(BESTELLUNG_ID);
+        });
+
+        // ============================================================
+        // 📥 BESTELLUNG LADEN
+        // ============================================================
+        async function loadBestellung(id) {
+            const container = document.getElementById('content');
+
+            try {
+                const url = `${GAS_API_URL}?action=get&id=${id}`;
+                console.log('📡 Lade:', url);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP-Fehler: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('📦 Daten geladen:', data);
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (!data || !data.bestellte_artikel) {
+                    throw new Error('Ungültige Datenstruktur');
+                }
+
+                bestellung = data;
+                renderPackliste(bestellung);
+
+            } catch (error) {
+                console.error('❌ Fehler beim Laden:', error);
+                showError('Fehler beim Laden der Bestellung', error.message);
+            }
+        }
+
+        // ============================================================
+        // 🎨 PACKLISTE RENDERN
+        // ============================================================
+        function renderPackliste(data) {
+            const container = document.getElementById('content');
+
+            const haus = data.haus || 'Unbekanntes Haus';
+            const lieferdatum = data.datum || 'Datum unbekannt';
+            const besteller = data.besteller || '';
+            const anmerkungen = data.anmerkungen || '';
+            const artikel = data.bestellte_artikel || [];
+
+            itemData = {};
+            totalItems = 0;
+            checkedItems = 0;
+            issueItems = 0;
+            let itemIdCounter = 0;
+
+            let html = `
+                <div class="header">
+                    <div class="header-top">
+                        <h2>🍳 Lieferschein Küchen-Check</h2>
+                    </div>
+                    <div class="header-info">
+                        <div>🏠 <span>${haus}</span></div>
+                        <div>📅 <span>${lieferdatum}</span></div>
+                        ${besteller ? `<div>👤 <span>${besteller}</span></div>` : ''}
+                    </div>
+                    ${anmerkungen ? `<div class="header-notes">💬 ${anmerkungen}</div>` : ''}
+                </div>
+            `;
+
+            let totalCount = 0;
+            artikel.forEach(cat => {
+                if (cat.items) totalCount += cat.items.length;
+            });
+
+            html += `
+                <div class="progress-bar">
+                    <div class="fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progressText">0 / ${totalCount} Artikel gepackt</div>
+            `;
+
+            artikel.forEach(cat => {
+                const catName = cat.name || 'Kategorie';
+                const catIcon = cat.icon || '📦';
+                const items = cat.items || [];
+                if (items.length === 0) return;
+
+                const safeCatId = catName.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+
+                html += `
+                    <div class="category">
+                        <div class="category-header" onclick="toggleCategory('${safeCatId}')">
+                            <div class="category-header-left">
+                                <span class="category-toggle" id="toggle_${safeCatId}">▶</span>
+                                <span>${catIcon} ${catName}</span>
+                            </div>
+                            <span id="count_${safeCatId}">0/${items.length}</span>
+                        </div>
+                        <div class="category-items" id="items_${safeCatId}">
+                `;
+
+                items.forEach(item => {
+                    itemIdCounter++;
+                    const itemId = itemIdCounter;
+                    totalItems++;
+
+                    const existingStatus = item.status || 'offen';
+                    const isChecked = existingStatus === 'vollständig';
+                    const hasIssue = existingStatus === 'fehlt' || existingStatus === 'ersetzt';
+
+                    itemData[itemId] = {
+                        checked: isChecked,
+                        status: existingStatus === 'offen' ? null : existingStatus,
+                        name: item.name,
+                        qty: item.qty,
+                        unit: item.unit,
+                        catId: safeCatId
+                    };
+
+                    if (isChecked) checkedItems++;
+                    if (hasIssue) issueItems++;
+
+                    const statusContainerClass = isChecked ? 'item-status hidden' : 'item-status';
+                    const statusSelectValue = existingStatus === 'offen' ? '' : existingStatus;
+
+                    html += `
+                        <div class="item-row ${isChecked ? 'checked' : ''} ${hasIssue ? 'has-issue' : ''}" id="item_${itemId}">
+                            <input type="checkbox" class="item-checkbox" data-item-id="${itemId}" ${isChecked ? 'checked' : ''} onchange="toggleItem(${itemId})">
+                            <div class="item-info">
+                                <div class="item-name ${isChecked ? 'checked' : ''}" id="name_${itemId}">${item.name}</div>
+                                <div class="item-qty">${item.qty} ${item.unit}</div>
+                            </div>
+                            <div class="${statusContainerClass}" id="status_container_${itemId}">
+                                <select class="status-select" id="status_${itemId}" onchange="handleStatusChange(${itemId}, this.value)">
+                                    <option value="">Status wählen...</option>
+                                    <option value="fehlt" ${statusSelectValue === 'fehlt' ? 'selected' : ''}>Fehlt heute</option>
+                                    <option value="ersetzt" ${statusSelectValue === 'ersetzt' ? 'selected' : ''}>Ersetzt</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                <div id="savingIndicator" class="saving-indicator">💾 Wird gespeichert...</div>
+                <div class="btn-row" id="buttonRow">
+                    <button type="button" class="btn" id="notifyBtn">📧 Lieferstatus ans Haus</button>
+                    <button type="button" class="btn" id="completeBtn">✅ Packliste abschließen</button>
+                </div>
+            `;
+
+            container.innerHTML = html;
+
+            document.getElementById('completeBtn').addEventListener('click', handleComplete);
+            document.getElementById('notifyBtn').addEventListener('click', handleNotify);
+
+            updateButtons();
+
+            Object.keys(itemData).forEach(id => {
+                const data = itemData[id];
+                if (data.catId) {
+                    updateCategoryCount(data.catId);
+                }
+            });
+        }
+
+        function toggleCategory(catId) {
+            const itemsDiv = document.getElementById(`items_${catId}`);
+            const toggle = document.getElementById(`toggle_${catId}`);
+            if (itemsDiv) {
+                itemsDiv.classList.toggle('open');
+                toggle.classList.toggle('open');
+                toggle.textContent = itemsDiv.classList.contains('open') ? '▼' : '▶';
+            }
+        }
+
+        function toggleItem(itemId) {
+            const checkbox = document.querySelector(`input[data-item-id="${itemId}"]`);
+            const isChecked = checkbox.checked;
+
+            const itemRow = document.getElementById(`item_${itemId}`);
+            const name = document.getElementById(`name_${itemId}`);
+            const statusContainer = document.getElementById(`status_container_${itemId}`);
+
+            const data = itemData[itemId];
+            data.checked = isChecked;
+
+            if (isChecked) {
+                itemRow.classList.add('checked');
+                name.classList.add('checked');
+                statusContainer.classList.add('hidden');
+                checkedItems++;
+
+                if (data.status === 'fehlt' || data.status === 'ersetzt') {
+                    issueItems--;
+                    itemRow.classList.remove('has-issue');
+                }
+                data.status = 'vollständig';
+            } else {
+                itemRow.classList.remove('checked');
+                name.classList.remove('checked');
+                statusContainer.classList.remove('hidden');
+                checkedItems--;
+
+                if (data.status === 'vollständig') {
+                    data.status = null;
+                }
+            }
+
+            if (data.catId) {
+                updateCategoryCount(data.catId);
+            }
+            updateButtons();
+            saveChanges();
+        }
+
+        function handleStatusChange(itemId, status) {
+            const data = itemData[itemId];
+            const oldStatus = data.status;
+            data.status = status;
+
+            const itemRow = document.getElementById(`item_${itemId}`);
+
+            if (!data.checked) {
+                if ((oldStatus === '' || oldStatus === null) && (status === 'fehlt' || status === 'ersetzt')) {
+                    issueItems++;
+                    itemRow.classList.add('has-issue');
+                } else if ((oldStatus === 'fehlt' || oldStatus === 'ersetzt') && (status === '' || status === null)) {
+                    issueItems--;
+                    itemRow.classList.remove('has-issue');
+                }
+            }
+
+            updateButtons();
+            saveChanges();
+        }
+
+        function updateCategoryCount(catId) {
+            const countEl = document.getElementById(`count_${catId}`);
+            if (!countEl) return;
+
+            const items = document.querySelectorAll(`#items_${catId} .item-checkbox`);
+            const checked = document.querySelectorAll(`#items_${catId} .item-checkbox:checked`);
+            countEl.textContent = `${checked.length}/${items.length}`;
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const fill = document.getElementById('progressFill');
+            const text = document.getElementById('progressText');
+            if (!fill || !text) return;
+
+            const total = totalItems || 1;
+            const percent = Math.round((checkedItems / total) * 100);
+            fill.style.width = `${Math.min(percent, 100)}%`;
+            text.textContent = `${checkedItems} / ${total} Artikel gepackt`;
+        }
+
+        function updateButtons() {
+            const allChecked = (checkedItems === totalItems && totalItems > 0);
+            const hasIssues = (issueItems > 0);
+
+            const completeBtn = document.getElementById('completeBtn');
+            const notifyBtn = document.getElementById('notifyBtn');
+
+            if (!completeBtn || !notifyBtn) return;
+
+            completeBtn.className = 'btn';
+            completeBtn.classList.remove('show');
+            notifyBtn.className = 'btn';
+            notifyBtn.classList.remove('show');
+            notifyBtn.disabled = false;
+
+            if (allChecked) {
+                completeBtn.className = 'btn btn-success show';
+                completeBtn.disabled = false;
+            } else if (hasIssues) {
+                notifyBtn.className = 'btn btn-danger show';
+                notifyBtn.disabled = false;
+            } else {
+                notifyBtn.className = 'btn btn-gray show';
+                notifyBtn.disabled = true;
+            }
+        }
+
+        // ============================================================
+        // 💾 SPEICHERN
+        // ============================================================
+        function showSaving(status, msg) {
+            const el = document.getElementById('savingIndicator');
+            if (!el) return;
+            el.className = 'saving-indicator';
+            if (status === 'saving') {
+                el.className = 'saving-indicator active';
+                el.textContent = '💾 Wird gespeichert...';
+            } else if (status === 'success') {
+                el.className = 'saving-indicator active success';
+                el.textContent = '✅ Gespeichert!';
+                setTimeout(() => {
+                    el.className = 'saving-indicator';
+                }, 2000);
+            } else if (status === 'error') {
+                el.className = 'saving-indicator active error';
+                el.textContent = '❌ ' + (msg || 'Fehler beim Speichern!');
+                setTimeout(() => {
+                    el.className = 'saving-indicator';
+                }, 6000);
+            }
+        }
+
+        async function saveChanges() {
+            if (!bestellung || !BESTELLUNG_ID) return;
+
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+
+            saveTimeout = setTimeout(async () => {
+                showSaving('saving');
+
+                const items = Object.keys(itemData).map(id => {
+                    const data = itemData[id];
+                    return {
+                        name: data.name,
+                        status: data.status || 'offen',
+                        checked: data.checked
+                    };
+                });
+
+                const payload = {
+                    action: 'update',
+                    bestellung_id: parseInt(BESTELLUNG_ID),
+                    items: items
+                };
+
+                try {
+                    const response = await fetch(GAS_API_URL, {
+                        method: 'POST',
+                        // text/plain (statt application/json) = KEIN CORS-Preflight!
+                        // Google Apps Script liest den JSON-Body trotzdem korrekt.
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // Prüfen, ob es wirklich eine JSON-Antwort ist
+                    const text = await response.text();
+                    let result;
+                    try {
+                        result = JSON.parse(text);
+                    } catch (e) {
+                        console.error('Keine JSON-Antwort:', text.slice(0, 300));
+                        showSaving('error', 'Antwort ist kein JSON (HTTP ' + response.status + '). Öffnest du die Datei per Doppelklick (file://)? Dann bitte über den Server testen.');
+                        return;
+                    }
+
+                    if (result.success) {
+                        showSaving('success');
+                    } else {
+                        showSaving('error', result.error || 'Unbekannter Fehler');
+                        console.error('Speicherfehler:', result.error);
+                    }
+                } catch (error) {
+                    showSaving('error', error.message);
+                    console.error('Netzwerkfehler:', error);
+                }
+            }, 500);
+        }
+
+        // ============================================================
+        // ✅ PACKLISTE ABSCHLIESSEN
+        // ============================================================
+        async function handleComplete() {
+            if (!confirm('Alle Artikel sind da. Packliste abschließen?')) return;
+
+            const btn = document.getElementById('completeBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Wird gesendet...';
+
+            try {
+                const payload = {
+                    action: 'abschliessen',
+                    bestellung_id: parseInt(BESTELLUNG_ID)
+                };
+
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    // text/plain (statt application/json) = KEIN CORS-Preflight!
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ Packliste erfolgreich abgeschlossen!');
+                    window.close();
+                } else {
+                    alert('❌ Fehler: ' + result.error);
+                    btn.disabled = false;
+                    btn.textContent = '✅ Packliste abschließen';
+                }
+            } catch (error) {
+                alert('❌ Netzwerkfehler: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '✅ Packliste abschließen';
+            }
+        }
+
+        // ============================================================
+        // 📧 LIEFERSTATUS ANS HAUS
+        // ============================================================
+        async function handleNotify() {
+            const btn = document.getElementById('notifyBtn');
+            if (btn.disabled) return;
+
+            const problemItems = [];
+            Object.keys(itemData).forEach(id => {
+                const data = itemData[id];
+                if (data.status === 'fehlt' || data.status === 'ersetzt') {
+                    problemItems.push({
+                        name: data.name,
+                        status: data.status === 'fehlt' ? 'Fehlt heute' : 'Ersetzt'
+                    });
+                }
+            });
+
+            if (problemItems.length === 0) {
+                alert('Keine Artikel mit Problemen gefunden.');
+                return;
+            }
+
+            if (!confirm(`Benachrichtigung an ${bestellung.haus} senden?\n\nBetroffene Artikel:\n${problemItems.map(i => `- ${i.name}: ${i.status}`).join('\n')}`)) return;
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Wird gesendet...';
+
+            try {
+                document.getElementById('overlay').classList.add('show');
+                btn.disabled = false;
+                btn.textContent = '📧 Lieferstatus ans Haus';
+                updateButtons();
+            } catch (error) {
+                alert('❌ Fehler: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = '📧 Lieferstatus ans Haus';
+            }
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').classList.remove('show');
+        }
+
+        function showError(title, message) {
+            document.getElementById('content').innerHTML = `
+                <div class="error">
+                    <h2>❌ ${title}</h2>
+                    <p>${message}</p>
+                    <p style="margin-top:16px;font-size:12px;color:#94a3b8;">Bitte überprüfen Sie den Link oder kontaktieren Sie die Küche.</p>
+                </div>
+            `;
+        }
+    </script>
+
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a31d22472efcc185',t:'MTc4Nzg1NTI4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
