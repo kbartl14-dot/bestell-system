@@ -402,7 +402,6 @@
         let checkedItems = 0;
         let issueItems = 0;
         let bestellung = null;
-        let saveTimeout = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (!BESTELLUNG_ID) {
@@ -518,7 +517,7 @@
 
                     const existingStatus = item.status || 'offen';
                     const isChecked = existingStatus === 'vollständig';
-                    const hasIssue = existingStatus === 'fehlt' || existingStatus === 'ersetzt';
+                    const hasIssue = existingStatus === 'fehlt' || existingStatus === 'bestellt';
 
                     itemData[itemId] = {
                         checked: isChecked,
@@ -546,7 +545,7 @@
                                 <select class="status-select" id="status_${itemId}" onchange="handleStatusChange(${itemId}, this.value)">
                                     <option value="">Status wählen...</option>
                                     <option value="fehlt" ${statusSelectValue === 'fehlt' ? 'selected' : ''}>Fehlt heute</option>
-                                    <option value="ersetzt" ${statusSelectValue === 'ersetzt' ? 'selected' : ''}>Ersetzt</option>
+                                    <option value="bestellt" ${statusSelectValue === 'bestellt' ? 'selected' : ''}>Ist bestellt</option>
                                 </select>
                             </div>
                         </div>
@@ -560,7 +559,6 @@
             });
 
             html += `
-                <div id="savingIndicator" class="saving-indicator">💾 Wird gespeichert...</div>
                 <div class="btn-row" id="buttonRow">
                     <button type="button" class="btn" id="notifyBtn">📧 Lieferstatus ans Haus</button>
                     <button type="button" class="btn" id="completeBtn">✅ Packliste abschließen</button>
@@ -609,7 +607,7 @@
                 statusContainer.classList.add('hidden');
                 checkedItems++;
 
-                if (data.status === 'fehlt' || data.status === 'ersetzt') {
+                if (data.status === 'fehlt' || data.status === 'bestellt') {
                     issueItems--;
                     itemRow.classList.remove('has-issue');
                 }
@@ -629,7 +627,8 @@
                 updateCategoryCount(data.catId);
             }
             updateButtons();
-            saveChanges();
+            // Kein Auto-Speichern mehr: Änderungen gelten lokal und werden erst
+            // beim "Packliste abschließen" oder "Lieferstatus ans Haus" gespeichert.
         }
 
         function handleStatusChange(itemId, status) {
@@ -640,17 +639,17 @@
             const itemRow = document.getElementById(`item_${itemId}`);
 
             if (!data.checked) {
-                if ((oldStatus === '' || oldStatus === null) && (status === 'fehlt' || status === 'ersetzt')) {
+                if ((oldStatus === '' || oldStatus === null) && (status === 'fehlt' || status === 'bestellt')) {
                     issueItems++;
                     itemRow.classList.add('has-issue');
-                } else if ((oldStatus === 'fehlt' || oldStatus === 'ersetzt') && (status === '' || status === null)) {
+                } else if ((oldStatus === 'fehlt' || oldStatus === 'bestellt') && (status === '' || status === null)) {
                     issueItems--;
                     itemRow.classList.remove('has-issue');
                 }
             }
 
             updateButtons();
-            saveChanges();
+            // Kein Auto-Speichern mehr (siehe oben).
         }
 
         function updateCategoryCount(catId) {
@@ -702,89 +701,6 @@
         }
 
         // ============================================================
-        // 💾 SPEICHERN
-        // ============================================================
-        function showSaving(status, msg) {
-            const el = document.getElementById('savingIndicator');
-            if (!el) return;
-            el.className = 'saving-indicator';
-            if (status === 'saving') {
-                el.className = 'saving-indicator active';
-                el.textContent = '💾 Wird gespeichert...';
-            } else if (status === 'success') {
-                el.className = 'saving-indicator active success';
-                el.textContent = '✅ Gespeichert!';
-                setTimeout(() => {
-                    el.className = 'saving-indicator';
-                }, 2000);
-            } else if (status === 'error') {
-                el.className = 'saving-indicator active error';
-                el.textContent = '❌ ' + (msg || 'Fehler beim Speichern!');
-                setTimeout(() => {
-                    el.className = 'saving-indicator';
-                }, 6000);
-            }
-        }
-
-        async function saveChanges() {
-            if (!bestellung || !BESTELLUNG_ID) return;
-
-            if (saveTimeout) {
-                clearTimeout(saveTimeout);
-            }
-
-            saveTimeout = setTimeout(async () => {
-                showSaving('saving');
-
-                const items = Object.keys(itemData).map(id => {
-                    const data = itemData[id];
-                    return {
-                        name: data.name,
-                        status: data.status || 'offen',
-                        checked: data.checked
-                    };
-                });
-
-                const payload = {
-                    action: 'update',
-                    bestellung_id: parseInt(BESTELLUNG_ID),
-                    items: items
-                };
-
-                try {
-                    const response = await fetch(GAS_API_URL, {
-                        method: 'POST',
-                        // text/plain (statt application/json) = KEIN CORS-Preflight!
-                        // Google Apps Script liest den JSON-Body trotzdem korrekt.
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    // Prüfen, ob es wirklich eine JSON-Antwort ist
-                    const text = await response.text();
-                    let result;
-                    try {
-                        result = JSON.parse(text);
-                    } catch (e) {
-                        console.error('Keine JSON-Antwort:', text.slice(0, 300));
-                        showSaving('error', 'Antwort ist kein JSON (HTTP ' + response.status + '). Öffnest du die Datei per Doppelklick (file://)? Dann bitte über den Server testen.');
-                        return;
-                    }
-
-                    if (result.success) {
-                        showSaving('success');
-                    } else {
-                        showSaving('error', result.error || 'Unbekannter Fehler');
-                        console.error('Speicherfehler:', result.error);
-                    }
-                } catch (error) {
-                    showSaving('error', error.message);
-                    console.error('Netzwerkfehler:', error);
-                }
-            }, 500);
-        }
-
-        // ============================================================
         // ✅ PACKLISTE ABSCHLIESSEN
         // ============================================================
         async function handleComplete() {
@@ -795,9 +711,19 @@
             btn.textContent = '⏳ Wird gesendet...';
 
             try {
+                const items = Object.keys(itemData).map(id => {
+                    const d = itemData[id];
+                    return {
+                        name: d.name,
+                        status: d.status || 'offen',
+                        checked: d.checked
+                    };
+                });
+
                 const payload = {
                     action: 'abschliessen',
-                    bestellung_id: parseInt(BESTELLUNG_ID)
+                    bestellung_id: parseInt(BESTELLUNG_ID),
+                    items: items
                 };
 
                 const response = await fetch(GAS_API_URL, {
@@ -834,10 +760,10 @@
             const problemItems = [];
             Object.keys(itemData).forEach(id => {
                 const data = itemData[id];
-                if (data.status === 'fehlt' || data.status === 'ersetzt') {
+                if (data.status === 'fehlt' || data.status === 'bestellt') {
                     problemItems.push({
                         name: data.name,
-                        status: data.status === 'fehlt' ? 'Fehlt heute' : 'Ersetzt'
+                        status: data.status === 'fehlt' ? 'Fehlt heute' : 'Ist bestellt'
                     });
                 }
             });
@@ -847,18 +773,48 @@
                 return;
             }
 
-            if (!confirm(`Benachrichtigung an ${bestellung.haus} senden?\n\nBetroffene Artikel:\n${problemItems.map(i => `- ${i.name}: ${i.status}`).join('\n')}`)) return;
+            if (!confirm(`Lieferstatus an ${bestellung.haus} senden?\n\nBetroffene Artikel:\n${problemItems.map(i => `- ${i.name}: ${i.status}`).join('\n')}`)) return;
 
             btn.disabled = true;
             btn.textContent = '⏳ Wird gesendet...';
 
             try {
-                document.getElementById('overlay').classList.add('show');
-                btn.disabled = false;
-                btn.textContent = '📧 Lieferstatus ans Haus';
-                updateButtons();
+                const items = Object.keys(itemData).map(id => {
+                    const d = itemData[id];
+                    return {
+                        name: d.name,
+                        status: d.status || 'offen',
+                        checked: d.checked
+                    };
+                });
+
+                const payload = {
+                    action: 'notify_haus',
+                    bestellung_id: parseInt(BESTELLUNG_ID),
+                    items: items
+                };
+
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    // text/plain (statt application/json) = KEIN CORS-Preflight!
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('overlay').classList.add('show');
+                    btn.disabled = false;
+                    btn.textContent = '📧 Lieferstatus ans Haus';
+                    updateButtons();
+                } else {
+                    alert('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'));
+                    btn.disabled = false;
+                    btn.textContent = '📧 Lieferstatus ans Haus';
+                }
             } catch (error) {
-                alert('❌ Fehler: ' + error.message);
+                alert('❌ Netzwerkfehler: ' + error.message);
                 btn.disabled = false;
                 btn.textContent = '📧 Lieferstatus ans Haus';
             }
@@ -879,5 +835,5 @@
         }
     </script>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a31d22472efcc185',t:'MTc4Nzg1NTI4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a321e7d77aedb857',t:'MTc4NzkwNTMxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
